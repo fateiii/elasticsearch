@@ -1,0 +1,166 @@
+1. elasticsearch
+    Elasticsearch is a highly scalable open-source full-text search and analytics engine.
+    It allows you to store, search, and analyze big volumes of data quickly and in near real time. 
+    It is generally used as the underlying engine/technology that powers applications that have complex 
+    search features and requirements.
+
+2. basic concept
+    Near Realtime (NRT): 准实时
+        Elasticsearch is a near real time search platform. What this means is there is a slight latency 
+    (normally one second) from the time you index a document until the time it becomes searchable
+    
+    Cluster: 集群
+        one or more nodes. 
+        identified by a unique name, default 'elasticsearch'.
+        不同的环境不要使用相同的集群名称, 否则可能会导致节点加入错误的集群
+        只有一个节点的集群是被允许的
+
+    Node: 节点
+        single server
+        identified by a unique name, default random UUID, 可自定义, 
+        可根据 name 分辨 node 属于哪台服务器(对于管理比较重要)
+        node 可以通过配置 cluster name 加入到指定的集群
+        node 默认会加入名为 'elasticsearch' 的集群, 如果启动了多个 node, 并且他们可以互相发现, 
+    则这些节点会默认加入一个名为 'elasticsearch' 的节点
+        单个集群包含多个节点, 如果所在网络中没有其它节点, 单个的默认节点会形成一个单节点集群 named 'elasticsearch'
+
+    Index: 索引
+        An index is a collection of documents that have somewhat similar characteristics
+        索引 name 必须是小写的
+        单集群中可建立任意多索引
+
+    Type: 类型(6.0.0 已废弃)
+        索引的逻辑 类别/分区
+
+    Document: 文档
+        能够被索引的信息的基本单元
+        Within an index/type, you can store as many documents as you want. 
+        Note that although a document physically resides in an index, a document actually 
+    must be indexed/assigned to a type inside an index.
+
+    Shards & Replicas: 分片和副本
+        当一个索引存储的数据超过单个节点的硬件限制的时候, 可对索引进行分片, 自定义分片数量
+        每个分片(shard)都是一个完整功能的索引, 可被托管到任意节点(node)上
+        分片非常重要的两个原因:
+            a.允许水平分割内容数据
+            b.允许跨越多个分片分布式和并行操作以提升性能/吞吐量
+        分片的分布方式以及如何将文档聚合回搜索请求的机制完全由Elasticsearch管理, 对用户来说是透明的.
+
+        在预期可能故障的环境中, 强烈建议使用故障转移机制，以防分片/节点以某种方式脱机或因任何原因消失。 
+        为此，Elasticsearch允许您将索引的分片的一个或多个副本制作成所谓的副本分片或简称副本。
+        复制很重要的两个原因:
+            a.提供高可用性在一个分片/节点失效的时候. 因此，请务必注意，副本分片永远不会在与从中复制的
+              原始/主分片相同的节点上分配。
+            b.它允许您扩展搜索量/吞吐量，因为可以在所有副本上并行执行搜索。
+
+        总而言之，每个索引可以拆分为多个分片。 索引也可以复制为零（表示没有副本）或更多次。 复制后，
+        每个索引都将具有主分片（从中复制的原始分片）和副本分片（主分片的副本）。 可以在创建索引时为每个索引
+        定义分片和副本的数量。 创建索引后，您可以随时动态更改副本数，但不能在事后更改分片数。
+
+        默认情况下，Elasticsearch中的每个索引都分配了5个主分片和1个副本，这意味着如果群集中至少有两个节点，
+        则索引将包含5个主分片和另外5个副本分片（1个完整副本），总计为 每个索引10个分片。
+
+        每个Elasticsearch分片都是Lucene索引。 单个Lucene索引中可以包含最多文档数。 截至LUCENE-5843，
+        限制为2,147,483,519（= Integer.MAX_VALUE  -  128）个文件。 您可以使用_cat / shards API监视分片大小。
+
+
+3. Install
+    required: > oracleJdk 1.8.0 U131
+    java -version
+    echo $JAVA_HOME
+
+    ./elasticsearch -Ecluster.name=my_cluster_name -Enode.name=my_node_name
+    
+    running as a daemon
+    ./bin/elasticsearch -d -p pid
+    Log messages can be found in the $ES_HOME/logs/ directory.
+    
+    shut down
+    pkill -F pid
+
+    启动多个实例
+    ./elasticsearch -Epath.data=data2 -Epath.logs=log2
+    ./elasticsearch -Epath.data=data3 -Epath.logs=log3
+
+    /etc/sysctl.conf
+    vm.max_map_count=262144
+    
+
+4. Exploring Your Cluster
+    The REST API
+        现在我们已经启动并运行了节点（和集群），下一步是了解如何与它进行通信。 幸运的是，
+        Elasticsearch提供了一个非常全面和强大的REST API，您可以使用它与集群进行交互。
+        使用API可以完成的一些事项如下：
+        .检查群集，节点和索引运行状况，状态和统计信息
+        .管理您的群集，节点和索引数据和元数据
+        .对索引执行CRUD（创建，读取，更新和删除）和搜索操作
+        .执行高级搜索操作，例如分页，排序，过滤，脚本编写，聚合等等
+       
+
+5. Cluster Health
+    curl -X GET "localhost:9200/_cat/health?v&pretty"
+    status:
+    .green - everything is good(cluster is fully functional)
+    .yellow - all data is available but some replicas are not yet allocated(cluster is 
+     fullyfunctional)
+    .red - some data is not available for whatever reason (cluster is partially functional)
+    注意：当群集为红色时，它将继续提供来自可用分片的搜索请求，但您可能需要尽快修复它，因为
+    存在未分配的分片。
+
+    curl -X GET "localhost:9200/_cat/nodes?v&pretty"
+
+6. List All Indices
+    curl -X GET "localhost:9200/_cat/indices?v&pretty"
+
+7. Create an Index
+    curl -X PUT "localhost:9200/customer?pretty&pretty"
+    curl -X GET "localhost:9200/_cat/indices?v&pretty"
+    
+8.
+    curl -X PUT "localhost:9200/customer/_doc/1?pretty" -H 'Content-Type: application/json' -d'
+    {
+    "name": "John Doe"
+    }
+    '
+
+    curl -X GET "localhost:9200/customer/_doc/1?pretty"
+    
+9. Indexing documents in bulk
+    最佳批处理大小取决于多种因素：文档大小和复杂性，索引和搜索负载以及群集可用的资源。 
+    一个好的起点是批量为1,000到5,000个文档，总有效载荷在5MB到15MB之间。 从那里，你可以尝试找到最佳点。
+    curl -H "Content-Type: application/json" -XPOST "localhost:9200/bank/_doc/_bulk?pretty&refresh" --data-binary "@accounts.json"
+
+10. searching
+    curl -X GET "localhost:9200/bank/_search?pretty" -H 'Content-Type: application/json' -d'
+    {
+        "query": { "match_all": {} },
+        "sort": [
+            { "account_number": "asc" }
+        ]
+    }
+    '
+    .took - 查询耗时(毫秒)
+    .timeout - 查询是否超时
+    ._shards - 搜索了多少分片, 以及成功, 跳过, 失败的分片数量
+    .max_socre - 找到最相关文件的分数
+    .hits.total.value - 匹配文件的数量
+    .hits.sort - 排序号
+    .hits._score - 文档的相关性得分（使用match_all时不适用）
+
+    curl -X GET "localhost:9200/bank/_search?pretty" -H 'Content-Type: application/json' -d'
+    {
+        "query": {
+            "bool": {
+                "must": [
+                    { "match": { "age": "40" } }
+                ],
+                "must_not": [
+                    { "match": { "state": "ID" } }
+                ]
+            }
+        }
+    }
+    '
+    
+11. head
+    https://github.com/mobz/elasticsearch-head
