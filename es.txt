@@ -164,3 +164,83 @@
     
 11. head
     https://github.com/mobz/elasticsearch-head
+
+	
+12. tutorials
+    a. cat api
+	    GET _cat/indices?v
+		
+    b. create index with mapping
+	    PUT plant
+        {
+          "mappings": {
+            "doc": {
+              "properties": {
+                "plantNo": {
+                  "type": "text"
+                },
+                "plantName": {
+                  "type": "text"
+                },
+                "plantScale": {
+                  "type": "double"
+                },
+                "startTime": {
+                  "type": "text"
+                },
+                "province": {
+                  "type": "keyword"
+                },
+                "city": {
+                  "type": "keyword"
+                },
+                "region": {
+                  "type": "keyword"
+                },
+                "town": {
+                  "type": "keyword"
+                }
+              }
+            }
+          }
+        }
+
+    c. delete index
+        DELETE plant
+		
+    d. index document
+        POST plant/doc
+        {
+          "city": "3301",
+          "plantName": "test2",
+          "plantNo": "1002",
+          "plantScale": 4.5,
+          "province": "33",
+          "region": "330102",
+          "startTime": "2020-05-12",
+          "town": "33010210"
+        }
+
+    e. delete document
+        DELETE plant/doc/TKj-AnIBA_mgtgWfyh6C
+
+    f. search document
+        GET plant/_search
+
+        GET plant/_search
+        {
+          "query": {
+            "term": {
+              "town": {
+                "value": "33010210"
+              }
+            }
+          },
+          "aggs": {
+            "plantScale": {
+              "sum": {
+                "field": "plantScale"
+              }
+            }
+          }
+        }
