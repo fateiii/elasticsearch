@@ -244,3 +244,27 @@
             }
           }
         }
+
+        GET /service-help-2020.01.01/_search
+        {
+          "aggs": {
+            "count": {
+              "value_count": {
+                "field": "@timestamp"
+              }
+            }
+          }, 
+          "query": {
+            "term": {
+              "thread_name.keyword": {
+                "value": "http-nio-8804-exec-9"
+              }
+            }
+          },
+          "post_filter": {
+            "exists": {
+              "field": "NAME"
+            }
+          }
+        }
+        
