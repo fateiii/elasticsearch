@@ -161,6 +161,12 @@
         }
     }
     '
+
+    bool
+    -must
+    -must_not
+    -filter
+    -should
     
 11. head
     https://github.com/mobz/elasticsearch-head
@@ -264,6 +270,56 @@
           "post_filter": {
             "exists": {
               "field": "NAME"
+            }
+          }
+        }
+        
+
+        GET taichi-service-iotdata-*/_search
+        {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "level.keyword": {
+                      "value": "ERROR"
+                    }
+                  }
+                }
+              ],
+              "must_not": [
+                {
+                  "match": {
+                    "message": "messageArrived phrase exception."
+                  }
+                },
+                {
+                  "match": {
+                    "message": "[实时数据消费] - 实时数据保存失败, Retrying[count=1]"
+                  }
+                },
+                {
+                  "match": {
+                    "message": "[实时数据消费] - 实时数据保存失败, Retrying[count=2]"
+                  }
+                }
+              ],
+              "filter": {
+                "range": {
+                  "@timestamp": {
+                    "gte": "now-24h"
+                  }
+                }
+              }
+            }
+          },
+          "aggs": {
+            "count": {
+              "value_count": {
+                "field": "@timestamp"
+              }
             }
           }
         }
